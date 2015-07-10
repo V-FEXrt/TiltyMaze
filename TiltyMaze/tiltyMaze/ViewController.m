@@ -383,55 +383,21 @@
 -(NSArray*)arrayWithNumberAcross:(int)across AndNumberDown: (int)down{
     NSMutableArray* actualArray = [[NSMutableArray alloc]init];
 
-    double deviceWidth = self.view.bounds.size.width;
-    double deviceHeigth = self.view.bounds.size.height;
+    int width = self.view.bounds.size.width / across;
+    int height = self.view.bounds.size.height / down;
     
-    double possibleCellWidth = deviceWidth / across;
-    double possibleCellHeigth = deviceHeigth / down;
-    
-    double actualCellSize;
-    int offsetHeigth = 0, offsetWidth = 0;
-    int sizeOfEmptyArea = 0;
-    //cell heigth becomes the smaller of the 2 possible sizes
-    if (possibleCellHeigth>possibleCellWidth) {
-        actualCellSize = possibleCellWidth;
-        sizeOfEmptyArea = deviceHeigth - (down * possibleCellWidth);
-        offsetHeigth = sizeOfEmptyArea/2;
-        
-        /*if (across*possibleCellWidth < deviceWidth) {
-            //add to width
-            offsetOffset = deviceWidth - (across* possibleCellWidth);
-            offsetWidth += offsetOffset;
-        }*/
-    
-        
-    }else if(possibleCellWidth>possibleCellHeigth){
-        actualCellSize = possibleCellHeigth;
-        sizeOfEmptyArea = deviceWidth - (across * possibleCellHeigth);
-        offsetWidth = sizeOfEmptyArea/2;
-        
-        /*if(down*possibleCellHeigth < deviceHeigth){
-            //add to heigth
-            offsetOffset = deviceHeigth - (down* possibleCellHeigth);
-            offsetHeigth += offsetOffset;
-        }*/
+    int size = 0;
+    if (width < height) {
+        size = width;
     }else{
-        actualCellSize = possibleCellHeigth * 0.9;
-        offsetHeigth = deviceHeigth * 0.05;
-        offsetWidth = deviceWidth * 0.05;
-    }
-    if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad) {
-    offsetHeigth += self.bannerView.bounds.size.height / 3;
-    //offsetWidth += self.bannerView.bounds.size.height;
-    }else{
-            offsetHeigth -= self.bannerView.bounds.size.height / 4;
+        size = height;
     }
     
     
     for (int i = 0; i < across; i++) {
         NSMutableArray* temp = [[NSMutableArray alloc]init];
         for (int k = 0 ; k < down; k++) {
-            GameCell* gCell = [[GameCell alloc]initWithFrame:CGRectMake((actualCellSize*i) + offsetWidth, (actualCellSize*k) + offsetHeigth, actualCellSize, actualCellSize)];
+            GameCell* gCell = [[GameCell alloc]initWithFrame:CGRectMake((size*i), (size*k), size, size)];
             
             [temp addObject:gCell];
             [gCell setTag:1];
@@ -444,7 +410,18 @@
     return [actualArray copy];
 }
 -(void)addGameCellToUI{
-    self.gameView = [[UIView alloc]initWithFrame:self.view.bounds];
+    
+    int size = [self.gameCellArray[0][0] bounds].size.width;
+    int across = (int)[self.gameCellArray count];
+    int down = (int)[self.gameCellArray[0] count];
+    
+    int containerWidth = (size* (across+ 1));
+    int containerHeight = size*(down + 1);
+    
+    double containerX = (self.view.bounds.size.width - containerWidth) / 2;
+    double containerY = (self.view.bounds.size.height - containerHeight) / 2;
+    
+    self.gameView = [[UIView alloc]initWithFrame:CGRectMake(containerX, containerY, containerWidth, containerHeight)];
     
     for (int i = 0; i < [self.gameCellArray count]; i++) {
         NSArray *row = [self.gameCellArray objectAtIndex:i];
