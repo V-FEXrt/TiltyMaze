@@ -7,9 +7,13 @@
 //
 
 #import "MapGenerator.h"
+#import "Graph.h"
 
 @interface MapGenerator ()
 @property (nonatomic, strong) NSArray *maze;
+@property int across;
+@property int down;
+@property (nonatomic, strong) Graph *graph;
 @property NSString* pathCode;
 @end
 int randDirs[4] = {1,2,3,4};
@@ -19,7 +23,11 @@ int randDirs[4] = {1,2,3,4};
     self = [super init];
     if (self) {
         self.pathCode = pathCode;
+        self.graph = [Graph graph];
+        self.across = rows;
+        self.down = columns;
         [self generateMapWithAcross:rows And:columns];
+        self.maze = [self ConvertGraphToArray:self.graph];
         //NSLog(@"Rows%d Columns%d", rows, columns);
         
     }
@@ -31,34 +39,40 @@ int randDirs[4] = {1,2,3,4};
 }
 -(NSArray*)generateNewMapWithRows:(int)rows AndNumberOfColumns:(int)columns OpenPathAsString:(NSString*)pathCode{
     self.pathCode = pathCode;
+    self.across = rows;
+    self.down = columns;
+    self.graph = [Graph graph];
+    
     [self generateMapWithAcross:rows And:columns];
-    return self.maze;
+    return [self ConvertGraphToArray:self.graph];
 }
 
 
 -(void)generateMapWithAcross: (int)across And: (int)down{
     
-    NSMutableArray* tempMaze = [[self array:across And:down] mutableCopy];
+    self.graph = [Graph graph];
     
-    int r = arc4random() % across;
+    int r = arc4random() % down;
     while (r % 2 == 0) {
-        r = arc4random() % across;
+        r = arc4random() % down;
     }
     
-    int c = arc4random() % down;
+    int c = arc4random() % across;
     while (c % 2 == 0) {
-        c = arc4random() % down;
+        c = arc4random() % across;
     }
     
-    //NSLog(@"StartPoint X%d Y%d",r, c);
+    NSDictionary* options =
+                        @{
+                          @"value"    : self.pathCode,
+                          @"across"   : [NSNumber numberWithInt: r],
+                          @"down"     : [NSNumber numberWithInt: c],
+                          };
+                              
+    GraphNode *node = [GraphNode nodeWithOptions:options];
+    [self.graph addNode:node];
     
-    NSMutableArray* tempRow = [[tempMaze objectAtIndex:r] mutableCopy];
-    [tempRow replaceObjectAtIndex:c withObject:self.pathCode];
-    [tempMaze replaceObjectAtIndex:r withObject:tempRow];
-    
-    self.maze = [tempMaze copy];
-    [self shuffleArray];
-    [self recursionWithRow:r andColumn:c AndArray:randDirs];
+    [self recursionWithRow:r andColumn:c AndArray:randDirs andCurrentNode:node];
     
     
 }
@@ -75,95 +89,105 @@ int randDirs[4] = {1,2,3,4};
     
 }
 
--(void)recursionWithRow:(int)r andColumn: (int)c AndArray:(int[])randArr{
+-(void)recursionWithRow:(int)r andColumn: (int)c AndArray:(int[])randArr andCurrentNode:(GraphNode*)node{
     [self shuffleArray];
     int newArr[4] ={randDirs[0], randDirs[1], randDirs[2], randDirs[3]};
+    NSDictionary* options;
+    GraphNode *nd1;
+    GraphNode *nd2;
+    NSString *direction;
     
+    int newRNd1 = 0;
+    int newCNd1 = 0;
+    int newRNd2 = 0;
+    int newCNd2 = 0;
     
-    NSMutableArray*tempMap = [self.maze mutableCopy];
-    NSMutableArray*tempRow;
     for (int i = 0; i < 4; i++) {
         switch (randArr[i]) {
-            case 1: //up
-                if (r - 2 <= 0) {
+            case 1: //Up
+                if (r - 2 < 0) {
                     continue;
                 }
-                if ([[[tempMap objectAtIndex:r-2]objectAtIndex:c]integerValue] != [self.pathCode integerValue]) {
-                    
-                    tempRow = [tempMap objectAtIndex:r-2];
-                    [tempRow replaceObjectAtIndex:c withObject:self.pathCode];
-                    [tempMap replaceObjectAtIndex:r-2 withObject:tempRow];
-                    
-                    tempRow = [tempMap objectAtIndex:r-1];
-                    [tempRow replaceObjectAtIndex:c withObject:self.pathCode];
-                    [tempMap replaceObjectAtIndex:r-1 withObject:tempRow];
-                    
-                    [self recursionWithRow:r-2 andColumn:c AndArray:newArr];
-                }
+                
+                direction = @"N";
+                newRNd1 = r - 1;
+                newCNd1 = c;
+                newRNd2 = r - 2;
+                newCNd2 = c;
+                
                 break;
+                
             case 2: // Right
-                // Whether 2 cells to the right is out or not
-                if (c + 2 >= [[tempMap objectAtIndex:0]count] - 1)
+                if (c + 2 > self.across - 1)
                     continue;
-                if ([[[tempMap objectAtIndex:r]objectAtIndex:c+2]integerValue] != [self.pathCode integerValue]) {
-                    
-                    tempRow = [tempMap objectAtIndex:r];
-                    [tempRow replaceObjectAtIndex:c+2 withObject:self.pathCode];
-                    [tempMap replaceObjectAtIndex:r withObject:tempRow];
-                    
-                    tempRow = [tempMap objectAtIndex:r];
-                    [tempRow replaceObjectAtIndex:c+1 withObject:self.pathCode];
-                    [tempMap replaceObjectAtIndex:r withObject:tempRow];
-                    
-                    [self recursionWithRow:r andColumn:c+2 AndArray:newArr];
-                    
-                    
-                }
+
+                direction = @"E";
+                newRNd1 = r;
+                newCNd1 = c + 1;
+                newRNd2 = r;
+                newCNd2 = c + 2;
+                
                 break;
                 
             case 3: // Down
-                // Whether 2 cells down is out or not
-                if (r + 2 >= [self.maze count] - 1)
+                if (r + 2 > self.down - 1)
                     continue;
-                
-                if ([[[tempMap objectAtIndex:r+2]objectAtIndex:c]integerValue] != [self.pathCode integerValue]) {
-                    
-                    tempRow = [tempMap objectAtIndex:r+2];
-                    [tempRow replaceObjectAtIndex:c withObject:self.pathCode];
-                    [tempMap replaceObjectAtIndex:r+2 withObject:tempRow];
-                    
-                    tempRow = [tempMap objectAtIndex:r+1];
-                    [tempRow replaceObjectAtIndex:c withObject:self.pathCode];
-                    [tempMap replaceObjectAtIndex:r+1 withObject:tempRow];
-                    
-                    [self recursionWithRow:r+2 andColumn:c AndArray:newArr];
-                }
+                //S r+2
+                direction = @"S";
+                newRNd1 = r + 1;
+                newCNd1 = c;
+                newRNd2 = r + 2;
+                newCNd2 = c;
                 
                 break;
                 
-            case 4: // Left
-                // Whether 2 cells to the left is out or not
-                if (c - 2 <= 0)
+            case 4: //Left
+                if (c - 2 < 0)
                     continue;
-                if ([[[tempMap objectAtIndex:r]objectAtIndex:c-2]integerValue] != [self.pathCode integerValue]) {
-                    
-                    tempRow = [tempMap objectAtIndex:r];
-                    [tempRow replaceObjectAtIndex:c-2 withObject:self.pathCode];
-                    [tempMap replaceObjectAtIndex:r withObject:tempRow];
-                    
-                    tempRow = [tempMap objectAtIndex:r];
-                    [tempRow replaceObjectAtIndex:c-1 withObject:self.pathCode];
-                    [tempMap replaceObjectAtIndex:r withObject:tempRow];
-                    
-                    
-                    [self recursionWithRow:r andColumn:c-2 AndArray:newArr];
-                }
+                //W c-2
+                direction = @"W";
+                newRNd1 = r;
+                newCNd1 = c - 1;
+                newRNd2 = r;
+                newCNd2 = c - 2;
+                
                 break;
                 
             default:
                 break;
         }
-        self.maze = [tempMap copy];
+        
+        if (newRNd1 > 9) {
+            NSLog(@"");
+        }
+        
+        options =
+        @{
+          @"value"    : self.pathCode,
+          @"across"   : [NSNumber numberWithInt: newRNd1],
+          @"down"     : [NSNumber numberWithInt: newCNd1],
+          };
+        
+        nd1 = [GraphNode nodeWithOptions:options];
+
+        
+        options =
+        @{
+          @"value"    : self.pathCode,
+          @"across"   : [NSNumber numberWithInt: newRNd2],
+          @"down"     : [NSNumber numberWithInt: newCNd2],
+          };
+        
+        nd2 = [GraphNode nodeWithOptions:options];
+        
+        if(![self.graph hasNode:nd2]){
+        
+        [self.graph addEdgeFromNode:node toNode:nd1 withOptions:@{@"direction" : direction}];
+        [self.graph addEdgeFromNode:nd1 toNode:nd2 withOptions:@{@"direction" : direction}];
+        
+        [self recursionWithRow:newRNd2 andColumn:newCNd2 AndArray:newArr andCurrentNode:nd2];
+        
+        }
     }
 }
 
@@ -186,5 +210,25 @@ int randDirs[4] = {1,2,3,4};
 
     return actualArray;
 }
+-(NSArray*)ConvertGraphToArray:(Graph*)graph{
+    
+    NSArray* arr = [self array:self.across And:self.down];
+    
+    for (GraphNode *node in graph.nodes) {
+        int row = [node.options[@"across"] intValue];
+        int col = [node.options[@"down"] intValue];
+        arr [col][row] = node.options[@"value"];
+    }
+    
+    for (int i = 0; i < self.across; i++) {
+        for (int j = 0; j <self.down; j++) {
+            printf("%d", [arr[i][j] intValue]);
+        }
+        printf(("\n"));
+    }
+    
+    return arr;
+}
+
 @end
 
